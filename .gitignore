@@ -1,0 +1,21 @@
+# 虚拟环境
+.venv/
+venv/
+
+# 构建产物
+build/
+dist/
+*.spec
+
+# Python 缓存
+__pycache__/
+*.py[cod]
+
+# 本地数据
+settings.json
+logs/
+*.log
+
+# 编辑器
+.vscode/
+.idea/
