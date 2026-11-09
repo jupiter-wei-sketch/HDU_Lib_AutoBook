@@ -7,7 +7,17 @@
 ## 下载
 
 - 直接下载最新版：[HDU_Lib_AutoBook.exe](https://github.com/jupiter-wei-sketch/HDU_Lib_AutoBook/releases/latest/download/HDU_Lib_AutoBook.exe)
+- 压缩包（浏览器拦截 exe 时使用）：[HDU_Lib_AutoBook.zip](https://github.com/jupiter-wei-sketch/HDU_Lib_AutoBook/releases/latest/download/HDU_Lib_AutoBook.zip)
 - 查看全部版本与更新说明：[Releases](https://github.com/jupiter-wei-sketch/HDU_Lib_AutoBook/releases/latest)
+
+> **提示「通常不会下载 HDU_Lib_AutoBook.exe」怎么办？**
+> 这是 Chrome / Edge 和 Windows SmartScreen 对「未数字签名、下载量少」的新程序的常规提醒，不代表文件有问题。
+> - Chrome：右上角下载栏 → 选择「保留」
+> - Edge：下载项 → 「…」→「保留」→「仍然保留」
+> - 若仍被阻止，可下载上面的 zip 压缩包，解压后双击运行
+>
+> 校验文件完整性（可选），exe 的 SHA-256：
+> `94FAF5DC84BD0844D80EE09A322F53ECBD63D201A124B4B73210DC19B1A9420E`
 
 ## 功能
 
