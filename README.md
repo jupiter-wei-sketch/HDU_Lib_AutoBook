@@ -4,6 +4,11 @@
 
 > 仅供个人学习与自动化技术交流使用。请遵守学校图书馆的预约规则，预约成功后按时签到，避免违约。
 
+## 下载
+
+- 直接下载最新版：[HDU_Lib_AutoBook.exe](https://github.com/jupiter-wei-sketch/HDU_Lib_AutoBook/releases/latest/download/HDU_Lib_AutoBook.exe)
+- 查看全部版本与更新说明：[Releases](https://github.com/jupiter-wei-sketch/HDU_Lib_AutoBook/releases/latest)
+
 ## 功能
 
 - 图形界面，无需命令行
@@ -22,7 +27,7 @@
 ## 直接使用（推荐）
 
 1. 安装 [Google Chrome](https://www.google.com/chrome/)（程序用 Chrome 完成登录）
-2. 下载 `HDU_Lib_AutoBook.exe`
+2. 下载 [HDU_Lib_AutoBook.exe](https://github.com/jupiter-wei-sketch/HDU_Lib_AutoBook/releases/latest/download/HDU_Lib_AutoBook.exe)
 3. 双击运行，填写学号、密码，选择日期、时段与座位
 4. 点击「开始预约」，等待日志输出结果
 
