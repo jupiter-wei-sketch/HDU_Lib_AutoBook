@@ -8,13 +8,15 @@ import json
 import os
 import re
 import sys
+import tempfile
 import threading
+import webbrowser
 from datetime import datetime
 from tkinter import messagebox
 
 import customtkinter as ctk
 
-from core import paths
+from core import paths, updater
 from core.booker import (DEFAULT_SETTINGS, WEEKDAYS, SeatBooker, expand_ranges,
                          load_rooms, next_schedule_time, room_of_seat, seat_number,
                          target_date, weekday_name)
@@ -68,11 +70,15 @@ class AutoBookApp(ctk.CTk):
         self.worker = None
         self.booker = None
         self.stop_event = None
+        self._checking_update = False
+        self._downloading = False
 
         self._build_ui()
         self._apply_saved()
         self._refresh_preview()
         self.protocol("WM_DELETE_WINDOW", self._on_close)
+        # 启动后静默检查一次更新，失败不打扰用户
+        self.after(1800, lambda: self._check_update(silent=True))
 
     # ---------- 配置读写 ----------
     @staticmethod
@@ -169,6 +175,13 @@ class AutoBookApp(ctk.CTk):
                                        font=ctk.CTkFont(size=14, weight="bold"),
                                        command=self._start)
         self.start_btn.grid(row=0, column=3, padx=(6, 0))
+
+        self.update_btn = ctk.CTkButton(footer, text="检查更新", width=96, height=34,
+                                        fg_color="transparent", border_width=1,
+                                        text_color=("gray30", "gray80"),
+                                        hover_color=("gray85", "gray25"),
+                                        command=lambda: self._check_update(silent=False))
+        self.update_btn.grid(row=0, column=4, padx=(6, 0))
 
     def _build_account_card(self, parent):
         inner = self._card(parent, "账号")
@@ -646,6 +659,124 @@ class AutoBookApp(ctk.CTk):
         self.log_box.configure(state="normal")
         self.log_box.delete("1.0", "end")
         self.log_box.configure(state="disabled")
+
+    # ---------- 在线更新 ----------
+    def _check_update(self, silent=False):
+        if self._checking_update or self._downloading:
+            return
+        self._checking_update = True
+        self.update_btn.configure(state="disabled", text="检查中…")
+        threading.Thread(target=self._check_update_worker, args=(silent,),
+                         daemon=True).start()
+
+    def _check_update_worker(self, silent):
+        info = updater.check_latest(VERSION)
+        try:
+            self.after(0, self._on_update_checked, info, silent)
+        except Exception:
+            pass
+
+    def _on_update_checked(self, info, silent):
+        self._checking_update = False
+        if not self.winfo_exists():
+            return
+        self.update_btn.configure(state="normal", text="检查更新")
+        if not info:
+            self._append("已是最新版本 v{}".format(VERSION))
+            if not silent:
+                messagebox.showinfo("检查更新",
+                                    "当前已是最新版本 v{}。".format(VERSION), parent=self)
+            return
+
+        self._append("发现新版本 v{}（当前 v{}）".format(info["version"], VERSION))
+        notes = (info.get("notes") or "").strip()
+        if len(notes) > 600:
+            notes = notes[:600] + "…"
+        msg = "发现新版本 v{}（当前 v{}）。\n\n{}\n\n是否立即下载并更新？".format(
+            info["version"], VERSION, notes or "（该版本没有更新说明）")
+        if not messagebox.askyesno("发现新版本", msg, parent=self):
+            return
+
+        if not getattr(sys, "frozen", False):
+            messagebox.showinfo("提示", "当前为源码运行模式，无法自动替换文件。\n"
+                                        "将打开下载页面，请手动下载最新 exe。", parent=self)
+            self._open_release_page(info)
+            return
+        if not info.get("has_asset"):
+            messagebox.showinfo("提示", "该版本未附带 exe 文件，请前往发布页手动下载。",
+                                parent=self)
+            self._open_release_page(info)
+            return
+        self._start_download(info)
+
+    def _open_release_page(self, info):
+        try:
+            webbrowser.open(info.get("page") or updater.RELEASES_URL)
+        except Exception:
+            self._append((info.get("page") or updater.RELEASES_URL))
+
+    def _start_download(self, info):
+        if self._downloading:
+            return
+        self._downloading = True
+        self.update_btn.configure(state="disabled", text="更新中…")
+        self._append("开始下载 v{}（{:.1f} MB）…".format(
+            info["version"], (info.get("size") or 0) / 1048576.0))
+        threading.Thread(target=self._download_worker, args=(info,), daemon=True).start()
+
+    def _download_worker(self, info):
+        dest = os.path.join(tempfile.gettempdir(), "HDU_Lib_AutoBook_update.exe")
+        state = {"pct": -1}
+
+        def progress(done, total):
+            if not total:
+                return
+            pct = int(done * 100 / total)
+            if pct >= state["pct"] + 5 or pct == 100:
+                state["pct"] = pct
+                self._append_threadsafe("下载中 {}%".format(pct))
+
+        try:
+            updater.download(info["url"], dest, progress=progress)
+        except Exception as e:
+            try:
+                self.after(0, self._on_download_failed, str(e))
+            except Exception:
+                pass
+            return
+        try:
+            self.after(0, self._on_downloaded, info, dest)
+        except Exception:
+            pass
+
+    def _on_download_failed(self, err):
+        self._downloading = False
+        if not self.winfo_exists():
+            return
+        self.update_btn.configure(state="normal", text="检查更新")
+        self._append("下载失败：{}".format(err))
+        messagebox.showerror("更新失败", "下载更新失败：\n{}".format(err), parent=self)
+
+    def _on_downloaded(self, info, dest):
+        self._downloading = False
+        if not self.winfo_exists():
+            return
+        self.update_btn.configure(state="normal", text="检查更新")
+        if self.worker and self.worker.is_alive():
+            messagebox.showinfo("请稍后", "预约任务正在运行，请等任务结束后再更新。", parent=self)
+            return
+        if not messagebox.askyesno(
+                "更新就绪",
+                "新版本 v{} 已下载完成。\n程序将退出，自动替换文件并重新启动，是否继续？".format(
+                    info["version"]), parent=self):
+            return
+        try:
+            updater.apply_update(dest)
+        except Exception as e:
+            messagebox.showerror("更新失败", "无法启动更新程序：\n{}".format(e), parent=self)
+            return
+        self._append("正在重启以完成更新…")
+        self.destroy()
 
     # ---------- 其它 ----------
     def _open_data_dir(self):
